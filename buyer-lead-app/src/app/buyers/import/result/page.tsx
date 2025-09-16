@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { DEMO_COOKIE, type DemoUser } from '@/src/lib/auth';
+import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
 import Link from 'next/link';
 
 type ImportError = {
