@@ -359,12 +359,21 @@ export default async function BuyerDetailPage({ params }: { params: Promise<{ id
                 Update Lead
               </button>
               <button
-                type="submit"
-                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
-                formAction={deleteAction}
-              >
-                Delete
-              </button>
+  type="submit"
+  className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+  formAction={async () => {
+    'use server';
+    try {
+      await db.delete(buyers).where(eq(buyers.id, buyer.id));
+      // redirect must be client-side here, can't use `redirect()` in a server action returning void
+      alert('Deleted successfully'); 
+    } catch (err) {
+      alert('Delete failed: ' + (err as Error).message);
+    }
+  }}
+>
+  Delete
+</button>
             </div>
           </form>
         </div>
