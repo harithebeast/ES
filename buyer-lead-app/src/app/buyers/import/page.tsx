@@ -144,7 +144,7 @@ export default async function ImportPage() {
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-6">Import CSV</h1>
       
-      <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
+      <div className="bg-black border border-blue-200 rounded p-4 mb-6">
         <h2 className="font-semibold mb-2">CSV Format Requirements:</h2>
         <ul className="text-sm space-y-1">
           <li>• Headers: fullName, email, phone, city, propertyType, bhk, purpose, budgetMin, budgetMax, timeline, source, notes, tags, status</li>
