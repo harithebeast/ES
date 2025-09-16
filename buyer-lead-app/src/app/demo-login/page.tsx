@@ -6,11 +6,14 @@ export default function DemoLoginPage({ searchParams }: { searchParams: { redire
   async function loginAction() {
     'use server';
     const user: DemoUser = { id: 'demo-user-1', name: 'Demo User' };
-    const cookieStore = cookies();
+
+    // Call cookies() directly (not awaited)
+    const cookieStore = cookies(); // do NOT await
     cookieStore.set(DEMO_COOKIE, encodeURIComponent(JSON.stringify(user)), {
       path: '/',
       maxAge: 7 * 24 * 60 * 60, // 7 days
     });
+
     redirect(searchParams.redirect || '/buyers');
   }
 
