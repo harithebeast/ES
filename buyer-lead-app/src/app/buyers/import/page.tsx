@@ -3,7 +3,6 @@ import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
 import { createBuyerSchema } from '@/validation/buyer';
 import { db } from '@/db/client';
 import { buyers, buyerHistory } from '@/db/schema';
-import { eq } from 'drizzle-orm';
 
 type ImportError = {
   row: number;
@@ -11,73 +10,90 @@ type ImportError = {
 };
 
 type ImportResult = {
-  success: boolean;
-  errors: ImportError[];
-  imported: number;
+  success?: boolean;
+  error?: string;
+  errors?: ImportError[];
+  imported?: number;
 };
 
-async function parseCSV(csvContent: string): Promise<{ data: any[], errors: ImportError[] }> {
+async function parseCSV(csvContent: string): Promise<{ data: any[]; errors: ImportError[] }> {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) {
     return { data: [], errors: [{ row: 0, message: 'CSV must have at least a header and one data row' }] };
   }
-  
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
   const expectedHeaders = [
-    'fullName', 'email', 'phone', 'city', 'propertyType', 'bhk', 'purpose',
-    'budgetMin', 'budgetMax', 'timeline', 'source', 'notes', 'tags', 'status'
+    'fullName',
+    'email',
+    'phone',
+    'city',
+    'propertyType',
+    'bhk',
+    'purpose',
+    'budgetMin',
+    'budgetMax',
+    'timeline',
+    'source',
+    'notes',
+    'tags',
+    'status',
   ];
-  
-  const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
+
+  const missingHeaders = expectedHeaders.filter((h) => !headers.includes(h));
   if (missingHeaders.length > 0) {
-    return { 
-      data: [], 
-      errors: [{ row: 0, message: `Missing headers: ${missingHeaders.join(', ')}` }] 
+    return {
+      data: [],
+      errors: [{ row: 0, message: `Missing headers: ${missingHeaders.join(', ')}` }],
     };
   }
-  
+
   const data: any[] = [];
   const errors: ImportError[] = [];
-  
+
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
-    
-    const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+
+    const values = line.split(',').map((v) => v.trim().replace(/"/g, ''));
     if (values.length !== headers.length) {
       errors.push({ row: i + 1, message: `Expected ${headers.length} columns, got ${values.length}` });
       continue;
     }
-    
-    const row: any = {};
+
+    const row: Record<string, unknown> = {};
     headers.forEach((header, idx) => {
-      let value = values[idx];
-      
-      // Parse specific fields
+      const raw = values[idx];
+
       if (header === 'budgetMin' || header === 'budgetMax') {
-        value = value ? parseInt(value) : undefined;
+        row[header] = raw ? parseInt(raw, 10) : undefined;
       } else if (header === 'tags') {
-        value = value ? value.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined;
-      } else if (header === 'email' && !value) {
-        value = undefined;
+        row[header] = raw
+          ? raw
+              .split(',')
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined;
+      } else if (header === 'email' && !raw) {
+        row[header] = undefined;
+      } else {
+        row[header] = raw;
       }
-      
-      row[header] = value;
     });
-    
+
     // Validate the row
     const parsed = createBuyerSchema.safeParse(row);
     if (!parsed.success) {
       const fieldErrors = Object.entries(parsed.error.flatten().fieldErrors)
-        .map(([field, errors]) => `${field}: ${errors?.join(', ')}`)
+        .map(([field, errs]) => `${field}: ${errs?.join(', ')}`)
         .join('; ');
       errors.push({ row: i + 1, message: fieldErrors });
       continue;
     }
-    
+
     data.push(parsed.data);
   }
-  
+
   return { data, errors };
 }
 
@@ -86,54 +102,36 @@ export default async function ImportPage() {
   if (!cookieVal) throw new Error('Not authenticated');
   const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
 
-  async function importAction(formData: FormData) {
+  async function importAction(formData: FormData): Promise<ImportResult> {
     'use server';
-    
+
     const file = formData.get('file') as File;
-    if (!file) {
-      return { error: 'No file provided' };
-    }
-    
-    if (file.size > 1024 * 1024) { // 1MB limit
-      return { error: 'File too large (max 1MB)' };
-    }
-    
+    if (!file) return { error: 'No file provided' };
+    if (file.size > 1024 * 1024) return { error: 'File too large (max 1MB)' };
+
     const csvContent = await file.text();
     const { data, errors } = await parseCSV(csvContent);
-    
-    if (errors.length > 0) {
-      return { errors, imported: 0 };
-    }
-    
-    if (data.length > 200) {
-      return { error: 'Too many rows (max 200)' };
-    }
-    
-    if (data.length === 0) {
-      return { error: 'No valid data to import' };
-    }
-    
-    // Import in transaction
+
+    if (errors.length > 0) return { errors, imported: 0 };
+    if (data.length > 200) return { error: 'Too many rows (max 200)' };
+    if (data.length === 0) return { error: 'No valid data to import' };
+
     try {
-      const imported = [];
+      const imported: string[] = [];
       for (const buyerData of data) {
         const [inserted] = await db
           .insert(buyers)
-          .values({
-            ...buyerData,
-            ownerId: user.id,
-          })
+          .values({ ...buyerData, ownerId: user.id })
           .returning({ id: buyers.id });
-          
+
         await db.insert(buyerHistory).values({
           buyerId: inserted.id,
           changedBy: user.id,
           diff: { created: true, by: user.id },
         });
-        
+
         imported.push(inserted.id);
       }
-      
       return { success: true, imported: imported.length };
     } catch (error) {
       return { error: 'Import failed: ' + (error as Error).message };
@@ -143,7 +141,7 @@ export default async function ImportPage() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-6">Import CSV</h1>
-      
+
       <div className="bg-black border border-blue-200 rounded p-4 mb-6">
         <h2 className="font-semibold mb-2">CSV Format Requirements:</h2>
         <ul className="text-sm space-y-1">
@@ -167,20 +165,10 @@ export default async function ImportPage() {
           <label htmlFor="file" className="block text-sm font-medium mb-2">
             Select CSV File
           </label>
-          <input
-            type="file"
-            id="file"
-            name="file"
-            accept=".csv"
-            required
-            className="w-full border p-2 rounded"
-          />
+          <input type="file" id="file" name="file" accept=".csv" required className="w-full border p-2 rounded" />
         </div>
-        
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-        >
+
+        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
           Import CSV
         </button>
       </form>
