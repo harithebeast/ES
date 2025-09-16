@@ -52,7 +52,19 @@ A Next.js application for capturing, managing, and processing buyer leads with c
 2. **Environment setup**:
    Create a `.env.local` file:
    ```env
-   DATABASE_URL="postgres://username:password@localhost:5432/buyer_leads"
+     POSTGRES_URL="*********************"
+     POSTGRES_USER="postgres"
+     POSTGRES_HOST="**********************"
+     SUPABASE_JWT_SECRET="*************************************************"
+     NEXT_PUBLIC_SUPABASE_ANON_KEY="*******************************************"
+    POSTGRES_PRISMA_URL="**********************"
+    POSTGRES_PASSWORD="***********"
+    POSTGRES_DATABASE="postgres"
+    SUPABASE_URL="*******************************"
+    SUPABASE_ANON_KEY="**********************"
+    NEXT_PUBLIC_SUPABASE_URL="**********************************"
+   SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsZnl4b3NwYndvYWlha29manNoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Nzk2MTQ5MCwiZXhwIjoyMDczNTM3NDkwfQ.oP8qRfauP4cJ1oYZI1Fe7ZMWkSZ5mZH_nJV8DQROgGc"
+   POSTGRES_URL_NON_POOLING="postgres://postgres.blfyxospbwoaiakofjsh:2TmyM9XYi7WP7A4w@aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require"
    ```
 
 3. **Database setup**:
