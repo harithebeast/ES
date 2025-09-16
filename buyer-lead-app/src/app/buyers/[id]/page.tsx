@@ -191,7 +191,25 @@ export default async function BuyerDetailPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
           <h2 className="text-lg font-semibold mb-4">Edit Lead</h2>
-          <form action={updateAction} className="space-y-4">
+          <form
+  className="space-y-4"
+  action={async (formData: FormData) => {
+    'use server';
+    const payload = Object.fromEntries(formData.entries());
+    try {
+      const parsed = updateBuyerSchema.safeParse(payload);
+      if (!parsed.success) {
+        alert('Validation failed');
+        return;
+      }
+      // Do DB update here...
+      await db.update(buyers).set({ fullName: parsed.data.fullName }).where(eq(buyers.id, buyer.id));
+      alert('Lead updated successfully');
+    } catch (err) {
+      alert('Update failed: ' + (err as Error).message);
+    }
+  }}
+>
             <input type="hidden" name="id" value={buyer.id} />
             <input type="hidden" name="updatedAt" value={buyer.updatedAt.toISOString()} />
             
