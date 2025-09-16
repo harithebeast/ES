@@ -5,6 +5,10 @@ import { createBuyerSchema } from '@/validation/buyer';
 import { db } from '@/db/client';
 import { buyers, buyerHistory } from '@/db/schema';
 import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
+import { InferModel } from 'drizzle-orm';
+
+
+type Buyer = InferModel<typeof buyers, 'insert'>; // Use 'insert' for insertable fields
 
 type ImportError = {
   row: number;
@@ -13,7 +17,7 @@ type ImportError = {
 
 async function parseCSV(
   csvContent: string
-): Promise<{ data: unknown[]; errors: ImportError[] }> {
+): Promise<{ data: Buyer[]; errors: ImportError[] }> {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) {
     return {
@@ -60,7 +64,7 @@ async function parseCSV(
     };
   }
 
-  const data: unknown[] = [];
+  const data: Buyer[] = [];
   const errors: ImportError[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -105,7 +109,7 @@ async function parseCSV(
       continue;
     }
 
-    data.push(parsed.data);
+    data.push(parsed.data as Buyer);
   }
 
   return { data, errors };
@@ -121,7 +125,7 @@ export async function POST(request: NextRequest) {
     const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
 
     // Rate limiting
-    const headersList = headers();
+    const headersList = await headers();
     const ip =
       headersList.get('x-forwarded-for') ||
       headersList.get('x-real-ip') ||
@@ -182,7 +186,7 @@ export async function POST(request: NextRequest) {
         const [inserted] = await db
           .insert(buyers)
           .values({
-            ...(buyerData as object),
+            ...buyerData,
             ownerId: user.id,
           })
           .returning({ id: buyers.id });
