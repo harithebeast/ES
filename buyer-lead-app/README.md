@@ -74,6 +74,24 @@ A Next.js application for capturing, managing, and processing buyer leads with c
    - Click "Continue as Demo User" to login
    - Navigate to `/buyers` to see the lead management interface
 
+## Supabase Setup
+
+If you use Supabase (recommended for quick setup):
+
+1. Create a new Supabase project.
+2. In Supabase Dashboard, go to Project Settings → Database → Connection string.
+3. Copy the URI and set it as `SUPABASE_DB_URL` in your `.env.local`.
+4. Supabase requires SSL; the app auto-enables it when the URL contains `supabase.co`.
+
+Example `.env.local` for Supabase:
+```env
+SUPABASE_DB_URL="postgres://postgres:<password>@<host>.supabase.co:5432/postgres"
+# Optional: force SSL on other hosts
+SUPABASE_DB_SSL=true
+```
+
+For migrations, the tooling prefers `SUPABASE_DB_URL` and falls back to `DATABASE_URL`.
+
 ## Usage
 
 ### Creating Leads

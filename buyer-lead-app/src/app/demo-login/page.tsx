@@ -1,13 +1,15 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { type DemoUser, DEMO_COOKIE } from '@/src/lib/auth';
+import { type DemoUser, DEMO_COOKIE } from '@/lib/auth';
 
-export default function DemoLoginPage({ searchParams }: { searchParams: { redirect?: string } }) {
+export default function DemoLoginPage({ searchParams }: { searchParams: Promise<{ redirect?: string }> }) {
 	async function loginAction() {
 		'use server';
+		const sp = await searchParams;
 		const user: DemoUser = { id: 'demo-user-1', name: 'Demo User' };
-		cookies().set(DEMO_COOKIE, encodeURIComponent(JSON.stringify(user)), { path: '/', maxAge: 7 * 24 * 60 * 60 });
-		redirect(searchParams.redirect || '/buyers');
+		const cookieStore = await cookies();
+		cookieStore.set(DEMO_COOKIE, encodeURIComponent(JSON.stringify(user)), { path: '/', maxAge: 7 * 24 * 60 * 60 });
+		redirect(sp.redirect || '/buyers');
 	}
 	return (
 		<form action={loginAction} className="p-8 max-w-sm mx-auto">

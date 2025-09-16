@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, text, timestamp, uuid, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, timestamp, uuid, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const cityEnum = pgEnum("city", ["Chandigarh", "Mohali", "Zirakpur", "Panchkula", "Other"]);
@@ -35,7 +35,11 @@ export const buyers = pgTable("buyers", {
   tags: text("tags").array(),
   ownerId: text("owner_id").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  buyersUpdatedAtIdx: index("buyers_updated_at_idx").on(table.updatedAt),
+  buyersPhoneIdx: index("buyers_phone_idx").on(table.phone),
+  buyersNameIdx: index("buyers_name_idx").on(table.fullName),
+}));
 
 export const buyerHistory = pgTable("buyer_history", {
   id: uuid("id").primaryKey().defaultRandom(),

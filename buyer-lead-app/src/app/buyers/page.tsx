@@ -1,11 +1,18 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
 import { cookies } from 'next/headers';
-import { db } from '@/src/db/client';
-import { buyers } from '@/src/db/schema';
+import { db } from '@/db/client';
+import { buyers } from '@/db/schema';
 import { eq, and, desc, ilike, or, sql } from 'drizzle-orm';
-import { DEMO_COOKIE, type DemoUser } from '@/src/lib/auth';
-import { cityValues, propertyTypeValues, statusValues, timelineValues } from '@/src/validation/buyer';
+import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
+import { cityValues, propertyTypeValues, statusValues, timelineValues } from '@/validation/buyer';
 
 type SearchParams = {
   page?: string;
@@ -88,27 +95,27 @@ function FilterForm({ searchParams }: { searchParams: SearchParams }) {
         name="search"
         placeholder="Search name, phone, email"
         defaultValue={searchParams.search}
-        className="border p-2"
+        className="border p-2 bg-white text-black"
       />
-      <select name="city" defaultValue={searchParams.city} className="border p-2">
+      <select name="city" defaultValue={searchParams.city} className="border p-2 bg-white text-black">
         <option value="">All Cities</option>
         {cityValues.map(city => (
           <option key={city} value={city}>{city}</option>
         ))}
       </select>
-      <select name="propertyType" defaultValue={searchParams.propertyType} className="border p-2">
+      <select name="propertyType" defaultValue={searchParams.propertyType} className="border p-2 bg-white text-black">
         <option value="">All Types</option>
         {propertyTypeValues.map(type => (
           <option key={type} value={type}>{type}</option>
         ))}
       </select>
-      <select name="status" defaultValue={searchParams.status} className="border p-2">
+      <select name="status" defaultValue={searchParams.status} className="border p-2 bg-white text-black">
         <option value="">All Status</option>
         {statusValues.map(status => (
           <option key={status} value={status}>{status}</option>
         ))}
       </select>
-      <select name="timeline" defaultValue={searchParams.timeline} className="border p-2">
+      <select name="timeline" defaultValue={searchParams.timeline} className="border p-2 bg-white text-black">
         <option value="">All Timelines</option>
         {timelineValues.map(timeline => (
           <option key={timeline} value={timeline}>{timeline}</option>
@@ -188,12 +195,14 @@ async function CSVExportButton({ searchParams }: { searchParams: SearchParams })
   );
 }
 
-export default async function BuyersPage({ searchParams }: { searchParams: SearchParams }) {
-  const cookieVal = cookies().get(DEMO_COOKIE)?.value;
+export default async function BuyersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const sp = await searchParams;
+  const cookieStore = await cookies();
+  const cookieVal = cookieStore.get(DEMO_COOKIE)?.value;
   if (!cookieVal) throw new Error('Not authenticated');
   const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
 
-  const { results, pagination } = await getBuyers(searchParams);
+  const { results, pagination } = await getBuyers(sp);
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -204,7 +213,7 @@ export default async function BuyersPage({ searchParams }: { searchParams: Searc
             New Lead
           </Link>
           <Suspense fallback={<div>Loading...</div>}>
-            <CSVExportButton searchParams={searchParams} />
+            <CSVExportButton searchParams={sp} />
           </Suspense>
           <Link href="/buyers/import" className="bg-green-600 text-white px-4 py-2 rounded">
             Import CSV
@@ -212,36 +221,36 @@ export default async function BuyersPage({ searchParams }: { searchParams: Searc
         </div>
       </div>
 
-      <FilterForm searchParams={searchParams} />
+      <FilterForm searchParams={sp} />
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse border">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="border p-2 text-left">Name</th>
-              <th className="border p-2 text-left">Phone</th>
-              <th className="border p-2 text-left">City</th>
-              <th className="border p-2 text-left">Property</th>
-              <th className="border p-2 text-left">Budget</th>
-              <th className="border p-2 text-left">Timeline</th>
-              <th className="border p-2 text-left">Status</th>
-              <th className="border p-2 text-left">Updated</th>
-              <th className="border p-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map(buyer => (
-              <tr key={buyer.id}>
-                <td className="border p-2">{buyer.fullName}</td>
-                <td className="border p-2">{buyer.phone}</td>
-                <td className="border p-2">{buyer.city}</td>
-                <td className="border p-2">
+      <TableContainer component={Paper} sx={{ backgroundColor: '#111', color: '#fff' }}>
+        <Table size="small" aria-label="buyers table" sx={{ '& td, & th': { borderColor: '#333' } }}>
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#f3f4f6' }}>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Name</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Phone</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>City</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Property</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Budget</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Timeline</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Status</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Updated</TableCell>
+              <TableCell sx={{ color: '#000', fontWeight: 600 }}>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {results.map((buyer) => (
+              <TableRow key={buyer.id} sx={{ backgroundColor: '#111' }}>
+                <TableCell sx={{ color: '#fff' }}>{buyer.fullName}</TableCell>
+                <TableCell sx={{ color: '#fff' }}>{buyer.phone}</TableCell>
+                <TableCell sx={{ color: '#fff' }}>{buyer.city}</TableCell>
+                <TableCell sx={{ color: '#fff' }}>
                   {buyer.propertyType}
                   {buyer.bhk && ` (${buyer.bhk} BHK)`}
-                </td>
-                <td className="border p-2">{formatBudget(buyer.budgetMin, buyer.budgetMax)}</td>
-                <td className="border p-2">{buyer.timeline}</td>
-                <td className="border p-2">
+                </TableCell>
+                <TableCell sx={{ color: '#fff' }}>{formatBudget(buyer.budgetMin, buyer.budgetMax)}</TableCell>
+                <TableCell sx={{ color: '#fff' }}>{buyer.timeline}</TableCell>
+                <TableCell sx={{ color: '#111' }}>
                   <span className={`px-2 py-1 rounded text-xs ${
                     buyer.status === 'New' ? 'bg-gray-100' :
                     buyer.status === 'Qualified' ? 'bg-blue-100' :
@@ -251,23 +260,20 @@ export default async function BuyersPage({ searchParams }: { searchParams: Searc
                   }`}>
                     {buyer.status}
                   </span>
-                </td>
-                <td className="border p-2 text-sm text-gray-600">
+                </TableCell>
+                <TableCell sx={{ color: '#9ca3af', fontSize: '0.85rem' }}>
                   {buyer.updatedAt.toLocaleDateString()}
-                </td>
-                <td className="border p-2">
-                  <Link 
-                    href={`/buyers/${buyer.id}`}
-                    className="text-blue-600 hover:underline"
-                  >
+                </TableCell>
+                <TableCell>
+                  <Link href={`/buyers/${buyer.id}`} className="text-blue-300 hover:underline">
                     View/Edit
                   </Link>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {results.length === 0 && (
         <div className="text-center py-8 text-gray-500">
@@ -275,7 +281,7 @@ export default async function BuyersPage({ searchParams }: { searchParams: Searc
         </div>
       )}
 
-      <Pagination pagination={pagination} searchParams={searchParams} />
+      <Pagination pagination={pagination} searchParams={sp} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ErrorBoundary } from "@/src/components/error-boundary";
+import { BackButton } from "@/components/back-button";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,11 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}
       >
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <div className="p-4">
+          <BackButton />
+        </div>
+        {children}
       </body>
     </html>
   );

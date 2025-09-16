@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
-import { DEMO_COOKIE, type DemoUser } from '@/src/lib/auth';
-import { createBuyerSchema } from '@/src/validation/buyer';
-import { db } from '@/src/db/client';
-import { buyers, buyerHistory } from '@/src/db/schema';
+import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
+import { createBuyerSchema } from '@/validation/buyer';
+import { db } from '@/db/client';
+import { buyers, buyerHistory } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 type ImportError = {

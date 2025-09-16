@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
-import { db } from '@/src/db/client';
-import { buyers, buyerHistory } from '@/src/db/schema';
+import { db } from '@/db/client';
+import { buyers, buyerHistory } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { DEMO_COOKIE, type DemoUser } from '@/src/lib/auth';
-import { updateBuyerSchema } from '@/src/validation/buyer';
-import { cityValues, propertyTypeValues, bhkValues, purposeValues, timelineValues, sourceValues, statusValues } from '@/src/validation/buyer';
-import { rateLimit, getRateLimitKey } from '@/src/lib/rate-limit';
+import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
+import { updateBuyerSchema } from '@/validation/buyer';
+import { cityValues, propertyTypeValues, bhkValues, purposeValues, timelineValues, sourceValues, statusValues } from '@/validation/buyer';
+import { rateLimit, getRateLimitKey } from '@/lib/rate-limit';
+import { redirect } from 'next/navigation';
 
 async function getBuyer(id: string) {
   const [buyer] = await db.select().from(buyers).where(eq(buyers.id, id));
@@ -53,12 +54,14 @@ function HistoryItem({ item }: { item: any }) {
   );
 }
 
-export default async function BuyerDetailPage({ params }: { params: { id: string } }) {
-  const cookieVal = cookies().get(DEMO_COOKIE)?.value;
+export default async function BuyerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const cookieStore = await cookies();
+  const cookieVal = cookieStore.get(DEMO_COOKIE)?.value;
   if (!cookieVal) throw new Error('Not authenticated');
   const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
 
-  const data = await getBuyer(params.id);
+  const p = await params;
+  const data = await getBuyer(p.id);
   if (!data) notFound();
   
   const { buyer, history } = data;
@@ -72,7 +75,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
     }
     
     // Rate limiting
-    const headersList = headers();
+    const headersList = await headers();
     const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
     const rateLimitKey = getRateLimitKey(ip, 'update-buyer');
     const rateLimitResult = rateLimit(rateLimitKey, 10, 60 * 1000); // 10 requests per minute
@@ -154,6 +157,28 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
     return { success: true };
   }
 
+  async function deleteAction() {
+    'use server';
+
+    // Ownership check
+    if (buyer.ownerId !== user.id) {
+      return { error: 'You can only delete your own leads' };
+    }
+
+    // Rate limit
+    const headersList = await headers();
+    const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
+    const rateKey = getRateLimitKey(ip, 'delete-buyer');
+    const rl = rateLimit(rateKey, 5, 60 * 1000);
+    if (!rl.allowed) {
+      return { error: 'Too many requests. Please try again later.' };
+    }
+
+    // Delete buyer (history cascades)
+    await db.delete(buyers).where(eq(buyers.id, buyer.id));
+    redirect('/buyers');
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -176,7 +201,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
                 <input 
                   name="fullName" 
                   defaultValue={buyer.fullName}
-                  className="w-full border p-2 rounded" 
+                  className="w-full border p-2 rounded bg-white text-black" 
                   required 
                 />
               </div>
@@ -185,7 +210,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
                 <input 
                   name="email" 
                   defaultValue={buyer.email || ''}
-                  className="w-full border p-2 rounded" 
+                  className="w-full border p-2 rounded bg-white text-black" 
                 />
               </div>
             </div>
@@ -196,13 +221,13 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
                 <input 
                   name="phone" 
                   defaultValue={buyer.phone}
-                  className="w-full border p-2 rounded" 
+                  className="w-full border p-2 rounded bg-white text-black" 
                   required 
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">City</label>
-                <select name="city" defaultValue={buyer.city} className="w-full border p-2 rounded">
+                <select name="city" defaultValue={buyer.city} className="w-full border p-2 rounded bg-white text-black">
                   {cityValues.map(city => (
                     <option key={city} value={city}>{city}</option>
                   ))}
@@ -213,7 +238,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Property Type</label>
-                <select name="propertyType" defaultValue={buyer.propertyType} className="w-full border p-2 rounded">
+                <select name="propertyType" defaultValue={buyer.propertyType} className="w-full border p-2 rounded bg-white text-black">
                   {propertyTypeValues.map(type => (
                     <option key={type} value={type}>{type}</option>
                   ))}
@@ -221,7 +246,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">BHK</label>
-                <select name="bhk" defaultValue={buyer.bhk || ''} className="w-full border p-2 rounded">
+                <select name="bhk" defaultValue={buyer.bhk || ''} className="w-full border p-2 rounded bg-white text-black">
                   <option value="">Select BHK</option>
                   {bhkValues.map(bhk => (
                     <option key={bhk} value={bhk}>{bhk}</option>
@@ -233,7 +258,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Purpose</label>
-                <select name="purpose" defaultValue={buyer.purpose} className="w-full border p-2 rounded">
+                <select name="purpose" defaultValue={buyer.purpose} className="w-full border p-2 rounded bg-white text-black">
                   {purposeValues.map(purpose => (
                     <option key={purpose} value={purpose}>{purpose}</option>
                   ))}
@@ -241,7 +266,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Timeline</label>
-                <select name="timeline" defaultValue={buyer.timeline} className="w-full border p-2 rounded">
+                <select name="timeline" defaultValue={buyer.timeline} className="w-full border p-2 rounded bg-white text-black">
                   {timelineValues.map(timeline => (
                     <option key={timeline} value={timeline}>{timeline}</option>
                   ))}
@@ -256,7 +281,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
                   name="budgetMin" 
                   type="number"
                   defaultValue={buyer.budgetMin || ''}
-                  className="w-full border p-2 rounded" 
+                  className="w-full border p-2 rounded bg-white text-black" 
                 />
               </div>
               <div>
@@ -265,7 +290,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
                   name="budgetMax" 
                   type="number"
                   defaultValue={buyer.budgetMax || ''}
-                  className="w-full border p-2 rounded" 
+                  className="w-full border p-2 rounded bg-white text-black" 
                 />
               </div>
             </div>
@@ -273,7 +298,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Source</label>
-                <select name="source" defaultValue={buyer.source} className="w-full border p-2 rounded">
+                <select name="source" defaultValue={buyer.source} className="w-full border p-2 rounded bg-white text-black">
                   {sourceValues.map(source => (
                     <option key={source} value={source}>{source}</option>
                   ))}
@@ -281,7 +306,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>
-                <select name="status" defaultValue={buyer.status} className="w-full border p-2 rounded">
+                <select name="status" defaultValue={buyer.status} className="w-full border p-2 rounded bg-white text-black">
                   {statusValues.map(status => (
                     <option key={status} value={status}>{status}</option>
                   ))}
@@ -294,7 +319,7 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
               <textarea 
                 name="notes" 
                 defaultValue={buyer.notes || ''}
-                className="w-full border p-2 rounded" 
+                className="w-full border p-2 rounded bg-white text-black" 
                 rows={3}
               />
             </div>
@@ -308,18 +333,27 @@ export default async function BuyerDetailPage({ params }: { params: { id: string
               />
             </div>
             
-            <button 
-              type="submit" 
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-            >
-              Update Lead
-            </button>
+            <div className="flex gap-3">
+              <button 
+                type="submit" 
+                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+              >
+                Update Lead
+              </button>
+              <button
+                type="submit"
+                className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+                formAction={deleteAction}
+              >
+                Delete
+              </button>
+            </div>
           </form>
         </div>
         
         <div>
           <h2 className="text-lg font-semibold mb-4">Lead Details</h2>
-          <div className="bg-gray-50 p-4 rounded space-y-2">
+          <div className="bg-white text-black p-4 rounded border space-y-2">
             <div><strong>Phone:</strong> {buyer.phone}</div>
             <div><strong>Email:</strong> {buyer.email || 'Not provided'}</div>
             <div><strong>City:</strong> {buyer.city}</div>

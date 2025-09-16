@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure form controls are readable on light backgrounds */
+select, input, textarea {
+  color: #000 !important;
+  background-color: #fff !important;
+}
+select option {
+  color: #000 !important;
+  background-color: #fff !important;
+}
