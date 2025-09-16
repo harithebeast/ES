@@ -1,16 +1,18 @@
-'use server'; // must be at the top
+
+'use server';
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
 
-export async function demoLogin() {  // <-- async here
+export async function demoLogin() {
   const user: DemoUser = { id: 'demo-user-1', name: 'Demo User' };
 
-  const cookieStore = cookies(); // Server-side, synchronous
-  cookieStore.set(DEMO_COOKIE, encodeURIComponent(JSON.stringify(user)), {
+  // Synchronous cookies API in Server Actions
+  const cookieStore = cookies(); 
+  cookieStore.set(DEMO_COOKIE, JSON.stringify(user), {
     path: '/',
-    maxAge: 7 * 24 * 60 * 60,
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   });
 
   redirect('/buyers');
