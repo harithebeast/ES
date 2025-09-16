@@ -12,56 +12,44 @@ import { BuyerForm } from '@/components/buyer-form';
 export default async function CreateBuyerPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
     const sp = await searchParams;
 	async function createAction(formData: FormData) {
-		'use server';
-		const cookieVal = cookies().get(DEMO_COOKIE)?.value;
-		if (!cookieVal) throw new Error('Not authenticated');
-		const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
-		
-		// Rate limiting
-		const headersList = headers();
-		const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
-		const rateLimitKey = getRateLimitKey(ip, 'create-buyer');
-		const rateLimitResult = rateLimit(rateLimitKey, 5, 60 * 1000); // 5 requests per minute
-		
-		if (!rateLimitResult.allowed) {
-			return { error: 'Too many requests. Please try again later.' };
-		}
-		const payload = Object.fromEntries(formData.entries());
-		const tags = (payload.tags as string | undefined)?.split(',').map((t) => t.trim()).filter(Boolean);
-		const parsed = createBuyerSchema.safeParse({ ...payload, tags });
-		if (!parsed.success) {
-			return { error: parsed.error.flatten() };
-		}
-		const data = parsed.data;
-		const [inserted] = await db
-			.insert(buyers)
-			.values({
-				fullName: data.fullName,
-				email: data.email,
-				phone: data.phone,
-				city: data.city,
-				propertyType: data.propertyType,
-				bhk: data.bhk,
-				purpose: data.purpose,
-				budgetMin: data.budgetMin,
-				budgetMax: data.budgetMax,
-				timeline: data.timeline,
-				source: data.source,
-				status: data.status ?? 'New',
-				notes: data.notes,
-				tags: data.tags,
-				ownerId: user.id,
-			})
-			.returning({ id: buyers.id });
+  'use server';
 
-		await db.insert(buyerHistory).values({
-			buyerId: inserted.id,
-			changedBy: user.id,
-			diff: { created: true, by: user.id },
-		});
+  const cookieStore = await cookies(); // ✅ await here
+  const cookieVal = cookieStore.get(DEMO_COOKIE)?.value;
+  if (!cookieVal) throw new Error('Not authenticated');
+  const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
 
-		redirect(`/buyers/${inserted.id}`);
-	}
+  // Rate limiting
+  const headersList = await headers(); // also await headers()
+  const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
+  const rateLimitKey = getRateLimitKey(ip, 'create-buyer');
+  const rateLimitResult = rateLimit(rateLimitKey, 5, 60 * 1000);
+  if (!rateLimitResult.allowed) {
+    return { error: 'Too many requests. Please try again later.' };
+  }
+
+  const payload = Object.fromEntries(formData.entries());
+  const tags = (payload.tags as string | undefined)?.split(',').map((t) => t.trim()).filter(Boolean);
+  const parsed = createBuyerSchema.safeParse({ ...payload, tags });
+  if (!parsed.success) {
+    return { error: parsed.error.flatten() };
+  }
+
+  const data = parsed.data;
+  const [inserted] = await db
+    .insert(buyers)
+    .values({ ...data, ownerId: user.id, status: data.status ?? 'New' })
+    .returning({ id: buyers.id });
+
+  await db.insert(buyerHistory).values({
+    buyerId: inserted.id,
+    changedBy: user.id,
+    diff: { created: true, by: user.id },
+  });
+
+  redirect(`/buyers/${inserted.id}`);
+}
+
 
 	return (
 		<div className="max-w-2xl mx-auto p-6">
