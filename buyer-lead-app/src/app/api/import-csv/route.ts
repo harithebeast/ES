@@ -113,7 +113,8 @@ async function parseCSV(
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieVal = cookies().get(DEMO_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const cookieVal = cookieStore.get(DEMO_COOKIE)?.value;
     if (!cookieVal) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }

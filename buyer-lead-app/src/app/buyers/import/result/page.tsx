@@ -15,7 +15,8 @@ type SearchParams = {
 };
 
 export default async function ImportResultPage({ searchParams }: { searchParams: SearchParams }) {
-  const cookieVal = cookies().get(DEMO_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const cookieVal = cookieStore.get(DEMO_COOKIE)?.value;
   if (!cookieVal) throw new Error('Not authenticated');
   const user = JSON.parse(decodeURIComponent(cookieVal)) as DemoUser;
 
