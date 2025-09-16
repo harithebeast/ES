@@ -1,19 +1,18 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { DEMO_COOKIE, type DemoUser } from '@/lib/auth';
+import { type DemoUser, DEMO_COOKIE } from '@/lib/auth';
 
 export default function DemoLoginPage({ searchParams }: { searchParams: { redirect?: string } }) {
   async function loginAction() {
     'use server';
+
     const user: DemoUser = { id: 'demo-user-1', name: 'Demo User' };
 
-    // Call cookies() directly (not awaited)
-    const cookieStore = cookies(); // do NOT await
-    cookieStore.set(DEMO_COOKIE, encodeURIComponent(JSON.stringify(user)), {
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    });
+    // Use `cookies()` from the server action parameter (automatic in form action)
+    // `cookies()` now returns a mutable ResponseCookies object
+    const resCookies = new Headers();
+    resCookies.append('Set-Cookie', `${DEMO_COOKIE}=${encodeURIComponent(JSON.stringify(user))}; Path=/; Max-Age=${7 * 24 * 60 * 60}`);
 
+    // Redirect after setting cookie
     redirect(searchParams.redirect || '/buyers');
   }
 
