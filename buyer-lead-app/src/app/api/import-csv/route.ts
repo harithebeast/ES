@@ -76,24 +76,23 @@ async function parseCSV(
       continue;
     }
 
-    const row: Record<string, unknown> = {};
+    const row: Record<string, string | number | string[] | undefined> = {};
+
     headersRow.forEach((header, idx) => {
       const raw = values[idx];
+      let parsedValue: string | number | string[] | undefined = raw;
 
       if (header === 'budgetMin' || header === 'budgetMax') {
-        row[header] = raw ? parseInt(raw, 10) : undefined;
+        parsedValue = raw ? parseInt(raw, 10) : undefined;
       } else if (header === 'tags') {
-        row[header] = raw
-          ? raw
-              .split(',')
-              .map((t) => t.trim())
-              .filter(Boolean)
+        parsedValue = raw
+          ? raw.split(',').map((t) => t.trim()).filter(Boolean)
           : undefined;
       } else if (header === 'email' && !raw) {
-        row[header] = undefined;
-      } else {
-        row[header] = raw;
+        parsedValue = undefined;
       }
+
+      row[header] = parsedValue;
     });
 
     // Validate the row
